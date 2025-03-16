@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>할 일 목록 (반응형 & 다크 모드 지원)</title>
+    <style>
+      :root {
+        /* 라이트 모드 색상 */
+        --bg-color: #f7f7f7;
+        --container-bg: #fff;
+        --text-color: #333;
+        --input-bg: #fff;
+        --input-text: #333;
+        --border-color: #e2e2e2;
+        --modal-bg: #fff;
+        --li-bg: #f2f2f2;
+        --deadline-color: #555;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0;
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 650px;
+        padding: 20px;
+        background-color: var(--container-bg);
+        border-radius: 10px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        transition: background-color 0.3s;
+      }
+
+      /* 다크 모드 색상 설정 */
+      body.dark-mode {
+        --bg-color: #222;
+        --container-bg: #333;
+        --text-color: #eee;
+        --input-bg: #444;
+        --input-text: #eee;
+        --border-color: #555;
+        --modal-bg: #444;
+        --li-bg: #555;
+        --deadline-color: #ccc;
+      }
+
+      h1 {
+        text-align: center;
+        margin-top: 10px;
+      }
+
+      /* 상단 컨트롤 영역 (버튼, 검색창) */
+      .top-controls {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .top-controls button,
+      .top-controls input[type="text"] {
+        padding: 6px 10px;
+        font-size: 14px;
+        cursor: pointer;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        background-color: var(--container-bg);
+        color: var(--text-color);
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      /* 검색 입력칸 너비 고정 */
+      #search-input {
+        flex: 0 0 150px;
+      }
+
+      /* 파일 입력은 숨김 */
+      #import-file {
+        display: none;
+      }
+
+      .input-row {
+        display: flex;
+        gap: 5px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+
+      .input-row input,
+      .input-row select {
+        padding: 10px;
+        font-size: 16px;
+        flex: 1 1 150px;
+        background-color: var(--input-bg);
+        color: var(--input-text);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      .input-row button {
+        padding: 10px;
+        font-size: 16px;
+        cursor: pointer;
+        flex: 0 0 auto;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        background-color: var(--container-bg);
+        color: var(--text-color);
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      li {
+        padding: 10px;
+        margin: 5px 0;
+        background-color: var(--li-bg);
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        border-radius: 5px;
+        border: 1px solid transparent;
+        transition: background-color 0.3s, border 0.3s;
+      }
+
+      body.dark-mode li {
+        background-color: var(--li-bg);
+        border: 1px solid var(--border-color);
+      }
+
+      li span {
+        margin: 5px 8px;
+      }
+
+      .buttons {
+        margin-left: auto;
+      }
+
+      .buttons button {
+        border: none;
+        background: none;
+        cursor: pointer;
+        margin-left: 5px;
+        color: var(--text-color);
+      }
+
+      .delete {
+        color: red;
+      }
+
+      .edit {
+        color: green;
+      }
+
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+
+      .completed {
+        text-decoration: line-through;
+        color: #888;
+      }
+
+      .deadline {
+        font-size: 0.9em;
+        color: var(--deadline-color);
+      }
+
+      .category,
+      .priority {
+        font-size: 0.9em;
+        color: var(--text-color);
+        background: var(--border-color);
+        border-radius: 3px;
+        padding: 2px 5px;
+      }
+
+      /* 우선순위별 색상 */
+      .priority-high {
+        background: #ffcccc;
+        color: red;
+      }
+      .priority-medium {
+        background: #fff5cc;
+        color: orange;
+      }
+      .priority-low {
+        background: #ccffcc;
+        color: green;
+      }
+
+      /* 카테고리별 색상 */
+      .category-house {
+        background: #cce5ff;
+        color: #004085;
+      }
+      .category-work {
+        background: #d4edda;
+        color: #155724;
+      }
+      .category-personal {
+        background: #e2d6f3;
+        color: #5a2d82;
+      }
+
+      /* 마감일 임박 시 강조 (24시간 이내) */
+      .imminent {
+        border: 2px solid red;
+      }
+
+      /* 모달 창 스타일 */
+      .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+      }
+
+      .modal-content {
+        background: var(--modal-bg);
+        padding: 20px;
+        border-radius: 5px;
+        width: 90%;
+        max-width: 400px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+        transition: background-color 0.3s;
+      }
+
+      .modal-content h2 {
+        margin-top: 0;
+      }
+
+      .modal-content input,
+      .modal-content select,
+      .modal-content button {
+        padding: 8px;
+        font-size: 14px;
+        margin: 5px 0;
+        width: 100%;
+        background-color: var(--input-bg);
+        color: var(--input-text);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+      }
+
+      .modal-buttons {
+        text-align: right;
+      }
+
+      .modal-buttons button {
+        width: auto;
+        margin-left: 10px;
+      }
+
+      /* 반응형 미디어 쿼리 */
+      @media (max-width: 768px) {
+        .top-controls {
+          flex-wrap: wrap; /* 화면 폭이 좁아지면 줄바꿈 허용 */
+        }
+        .top-controls button,
+        .top-controls input[type="text"] {
+          flex: 1 1 auto; /* 버튼과 검색창이 자동으로 폭 조절 */
+        }
+        #search-input {
+          flex: 1 1 100px; /* 검색창은 조금 더 좁혀도 됨 */
+        }
+      }
+
+      @media (max-width: 480px) {
+        .input-row {
+          flex-direction: column;
+        }
+        .input-row input,
+        .input-row select,
+        .input-row button {
+          flex: 1 1 100%;
+          margin-bottom: 5px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- 상단 컨트롤 영역: 모두 한 줄 배치, 화면 좁아지면 wrap -->
+      <div class="top-controls">
+        <button id="manual-order-toggle">수동 순서</button>
+        <button id="dark-mode-toggle">다크 모드</button>
+        <button id="export-btn">데이터 내보내기</button>
+        <button id="import-btn">데이터 복원</button>
+        <input type="file" id="import-file" accept=".json" />
+        <input type="text" id="search-input" placeholder="검색어" />
+      </div>
+
+      <h1>📝 할 일 목록 (반응형 & 다크 모드 지원)</h1>
+
+      <!-- 첫 번째 행: 할 일 입력, 카테고리 선택, 우선순위 선택 -->
+      <div class="input-row">
+        <input type="text" id="todo-input" placeholder="할 일을 입력하세요." />
+        <select id="todo-category">
+          <option value="">카테고리 선택</option>
+          <option value="집안일">집안일</option>
+          <option value="회사일">회사일</option>
+          <option value="개인일">개인일</option>
+        </select>
+        <select id="todo-priority">
+          <option value="">우선순위 선택</option>
+          <option value="높음">높음</option>
+          <option value="중간">중간</option>
+          <option value="낮음">낮음</option>
+        </select>
+      </div>
+
+      <!-- 두 번째 행: 마감일 입력과 추가 버튼 -->
+      <div class="input-row">
+        <input type="text" id="todo-deadline" placeholder="마감일 (YYYYMMDD)" />
+        <button onclick="addTodo()">추가</button>
+      </div>
+
+      <ul id="todo-list"></ul>
+    </div>
+
+    <!-- 모달 창 (할 일 수정) -->
+    <div id="edit-modal" class="modal">
+      <div class="modal-content">
+        <h2>할 일 수정</h2>
+        <input type="text" id="edit-task" placeholder="할 일을 입력하세요." />
+        <select id="edit-category">
+          <option value="">카테고리 선택</option>
+          <option value="집안일">집안일</option>
+          <option value="회사일">회사일</option>
+          <option value="개인일">개인일</option>
+        </select>
+        <select id="edit-priority">
+          <option value="">우선순위 선택</option>
+          <option value="높음">높음</option>
+          <option value="중간">중간</option>
+          <option value="낮음">낮음</option>
+        </select>
+        <input type="text" id="edit-deadline" placeholder="마감일 (YYYYMMDD)" />
+        <div class="modal-buttons">
+          <button id="save-edit-modal">저장</button>
+          <button id="cancel-edit-modal">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 기존 JS 코드 (script.js)는 그대로 사용 -->
+    <script src="script.js"></script>
+  </body>
+</html>
